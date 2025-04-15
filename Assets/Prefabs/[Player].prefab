@@ -184,8 +184,9 @@ MonoBehaviour:
   targetSpeed: 10
   acceleration: 10
   deceleration: 12
-  frontLeftWheel: {fileID: 0}
-  frontRightWheel: {fileID: 0}
+  vCam: {fileID: 0}
+  frontLeftWheel: {fileID: 5818634282719459942}
+  frontRightWheel: {fileID: 3629485267918464699}
   maxWheelTurnAngle: 30
   steeringSensitivity: 2
   maxSteerAngle: 45
@@ -324,8 +325,18 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6b2efba8f09f1b3479dac1e63316c0dd, type: 3}
+--- !u!4 &3629485267918464699 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -764697234159880554, guid: 6b2efba8f09f1b3479dac1e63316c0dd, type: 3}
+  m_PrefabInstance: {fileID: 5133464165350248493}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &4663199275085952966 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 6b2efba8f09f1b3479dac1e63316c0dd, type: 3}
+  m_PrefabInstance: {fileID: 5133464165350248493}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &5818634282719459942 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -7529372644190115253, guid: 6b2efba8f09f1b3479dac1e63316c0dd, type: 3}
   m_PrefabInstance: {fileID: 5133464165350248493}
   m_PrefabAsset: {fileID: 0}
