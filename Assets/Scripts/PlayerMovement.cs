@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using Fusion;
 /* redid this script, now there is no mix and the movement seems to be working well,
- while retaining the player within track boundaries, i didnt want to use raycasts to detect bounds for this so went with navmesh, but later if cars are jumping off ramps and all that we can deactivate for that brief second and perhaps have a hybrid sys, on touchdown we reactivate the navmesh or something.*/
+ while retaining the player within track boundaries, i didnt want to use raycasts to detect bounds for this so went with navmesh, but later if cars are jumping off ramps and all that we can deactivate for that brief second and perhaps have a hybrid sys, on touchdown we reactivate the navmesh or something. I also would love to learn more from the team infact and how they tackle such challenges.*/
 public class PlayerMovement : NetworkBehaviour
 {
     public float moveSpeed = 5f;
