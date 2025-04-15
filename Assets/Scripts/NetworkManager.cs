@@ -42,7 +42,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
             Debug.Log("Field was empty, defaulted to Room Number = 0");
         }
 
-        int randomInt = roomNumber; // now we input it from UI itself, so use same room number to join your friends.
+        int randomInt = roomNumber; // now we input it from UI itself, so use same room number to join our/your friends.
 
         string randomSessionName = "Room : " + randomInt.ToString();
         NetworkManager.runnerInstance.StartGame(new StartGameArgs()
