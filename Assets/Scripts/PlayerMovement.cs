@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using Fusion;
+using Cinemachine;
 /* redid this script, now there is no mix and the movement seems to be working well,
  while retaining the player within track boundaries, i didnt want to use raycasts to detect bounds for this so went with navmesh, but later if cars are jumping off ramps and all that we can deactivate for that brief second and perhaps have a hybrid sys, on touchdown we reactivate the navmesh or something. I also would love to learn more from the team infact and how they tackle such challenges.*/
 public class PlayerMovement : NetworkBehaviour
@@ -22,7 +23,8 @@ public class PlayerMovement : NetworkBehaviour
     private NavMeshPath path;
     private int currentPathIndex = 0;
 
- 
+    // Camera
+    public CinemachineVirtualCamera vCam;
 
     // State
     private Vector3 targetPosition;
@@ -46,7 +48,11 @@ public class PlayerMovement : NetworkBehaviour
 
     public override void Spawned()
     {
-      
+        if (HasStateAuthority)
+        {
+            vCam = FindObjectOfType<CinemachineVirtualCamera>();
+            vCam.Follow = transform;
+        }
     }
 
     public override void FixedUpdateNetwork()
