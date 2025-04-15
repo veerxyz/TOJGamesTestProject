@@ -16,7 +16,7 @@ public class PlayerObject : NetworkBehaviour
     [Networked] public float lastLapTime { get; set; }
     [Networked] public float bestLapTime { get; set; }
 
-    // NEW: Total race time accumulator
+    // Total race time accumulator
     [Networked] public float totalRaceTime { get; set; }
 
     // Track previous progress to detect changes manually
@@ -38,7 +38,7 @@ public class PlayerObject : NetworkBehaviour
         currentLapStartTime = (float)Runner.SimulationTime;
         lastLapTime = 0;
         bestLapTime = float.MaxValue;
-        totalRaceTime = 0;  // <<-- Initialize totalRaceTime to zero at the start
+        totalRaceTime = 0;  //initialize totalRaceTime to zero at the start
     }
 
     public override void FixedUpdateNetwork()
@@ -75,7 +75,7 @@ public class PlayerObject : NetworkBehaviour
                 }
 
                 // ACCUMULATE the lap time into totalRaceTime.
-                totalRaceTime += lapTime;    // <<-- This records the lap time exactly when the lap finishes
+                totalRaceTime += lapTime;    //This records the lap time exactly when the lap finishes
 
                 // Reset lap timer
                 currentLapStartTime = currentTime;
@@ -130,7 +130,7 @@ public class PlayerObject : NetworkBehaviour
     public override void Render()
     {
         // Check if the progress has changed from network updates
-        if (Mathf.Abs(previousProgress - progress) > 0.0001f) // Smaller threshold for change detection
+        if (Mathf.Abs(previousProgress - progress) > 0.0001f) // Smaller threshold for change detection, I would do some more test runs and change this to more efficient but in this case going with this value.
         {
             previousProgress = progress;
             NotifyProgressChanged();

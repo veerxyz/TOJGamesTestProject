@@ -167,6 +167,8 @@ MonoBehaviour:
   lobbyName: default
   roomNumberInputField: {fileID: 1378950479527126737}
   playSceneName: PlayScene
+  lobbySceneName: LobbyScene
+  playerPrefab: {fileID: 8935813898356449524, guid: 9cc8be786a644cb478fd74e9dd07a8ff, type: 3}
 --- !u!4 &89265075
 Transform:
   m_ObjectHideFlags: 0

@@ -1,191 +1,186 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.EventSystems;
-using static UnityEngine.GridBrushBase;
-
-public class PlayerMovement : MonoBehaviour
+using Fusion;
+/* redid this script, now there is no mix and the movement seems to be working well,
+ while retaining the player within track boundaries, i didnt want to use raycasts to detect bounds for this so went with navmesh, but later if cars are jumping off ramps and all that we can deactivate for that brief second and perhaps have a hybrid sys, on touchdown we reactivate the navmesh or something.*/
+public class PlayerMovement : NetworkBehaviour
 {
-    // NavMesh Components
-    private NavMeshAgent navAgent;
-    private NavMeshPath path; //for path calculation.
-    [Header("Car Settings")]
-    [SerializeField] private Transform carModel;
-    [SerializeField] private float maxSpeed = 20f;
-    [SerializeField] private float accelerationRate = 8f;
-    [SerializeField] private float decelerationRate = 10f;
-    [SerializeField] private float brakeForce = 10f;
-    // Car related
-    private float currentSpeed;
-    private float targetSpeed;
-    private float currentSteeringAngle;
-    private float rotationDirection = 0f;
-  
-    private bool isReversing = false;
-    private bool isBraking = false;
-    private Vector3 moveDirection;
-    [Header("Steering Settings")]
-    [SerializeField] private float steeringSensitivity = 5f;
-    [SerializeField] private float maxSteeringAngle = 45f;
-    [SerializeField] private float steeringResetSpeed = 5f;
-    [SerializeField] private float wheelTurnAngle = 30f;
+    public float moveSpeed = 5f;
+    public float stoppingDistance = 0.1f;
+    public float maxSpeed = 10f;
+    public float targetSpeed = 10f;
+    public float acceleration = 10f;
+    public float deceleration = 12f;
+    private float currentSpeed = 0f;
+
+    // currentMoveDirection: +1 for forward, -1 for reverse.
+    private float currentMoveDirection = 1f;
+
+
+    private NavMeshPath path;
+    private int currentPathIndex = 0;
+
+ 
+
+    // State
+    private Vector3 targetPosition;
+    private bool hasPath = false;
+
+    [Header("Wheel Visuals")]
+    public Transform frontLeftWheel;
+    public Transform frontRightWheel;
+
+    [Range(0f, 45f)]
+    public float maxWheelTurnAngle = 30f;
+
+    [Header("Steering Behavior")]
+    public float steeringSensitivity = 2f;
+    public float maxSteerAngle = 45f;
+
     private void Awake()
     {
-        // Get NavMeshAgent reference
-        navAgent = GetComponent<NavMeshAgent>();
-
-        // Configure NavMeshAgent for car control
-        navAgent.updateRotation = false; // We'll handle rotation manually
-        navAgent.updatePosition = true;
-        navAgent.acceleration = accelerationRate * 2; // Setting acceleration to be responsive
-        navAgent.angularSpeed = steeringSensitivity * 20; // Angular speed for turning
-
-        // Get carModel reference if not set
-        if (carModel == null && transform.childCount > 0)
-            carModel = transform.GetChild(0);
-
-        // Initialize move direction
-        moveDirection = transform.forward;
+        path = new NavMeshPath();
     }
 
-    private void Update()
+    public override void Spawned()
     {
-        HandleInput();
-        ApplyMovement();
-        ApplyRotation();
-    }
-    private void HandleInput()
-    {
-        // Get raw input
-        float accelerationInput = Input.GetAxis("Vertical");
-        float steeringInput = Input.GetAxis("Horizontal");
-
-        // Handle throttle, brake and reverse
-        if (accelerationInput < 0)
-        {
-            // If car is not moving, enable reversing
-            if (currentSpeed < 0.1f && !isReversing)
-            {
-                isReversing = true;
-                targetSpeed = -maxSpeed * 0.5f; // Reverse at half max speed
-            }
-            // If car is moving forward, apply brakes
-            else if (currentSpeed > 0.1f)
-            {
-                isBraking = true;
-                targetSpeed = 0;
-            }
-        }
-        else if (accelerationInput > 0)
-        {
-            // If car is reversing and we press W, go forward
-            if (isReversing)
-            {
-                isReversing = false;
-            }
-
-            isBraking = false;
-            targetSpeed = maxSpeed * accelerationInput;
-        }
-        else
-        {
-            // No acceleration input, slow down naturally
-            if (Mathf.Abs(currentSpeed) > 0.1f)
-            {
-                targetSpeed = 0;
-            }
-
-            isBraking = false;
-        }
-
-        // Handle steering
-        if (currentSpeed > 0.5f || (isReversing && Mathf.Abs(currentSpeed) > 0.2f))
-        {
-            // Calculate steering based on input
-            float targetSteeringAngle = steeringInput * maxSteeringAngle;
-
-            // Apply steering sensitivity
-            currentSteeringAngle = Mathf.Lerp(currentSteeringAngle, targetSteeringAngle, Time.deltaTime * steeringSensitivity);
-
-            // Determine rotation direction for the car
-            rotationDirection = steeringInput;
-        }
-        else
-        {
-            // If car is not moving, gradually reset steering
-            currentSteeringAngle = Mathf.Lerp(currentSteeringAngle, 0f, Time.deltaTime * steeringResetSpeed);
-            rotationDirection = 0f;
-        }
-    }
-
-    private void ApplyMovement()
-    {
-        // Calculate the acceleration/deceleration rate based on whether we're braking
-        float accelRate = isBraking ? brakeForce :
-                         (targetSpeed > currentSpeed) ? accelerationRate : decelerationRate;
-
-        // Smoothly adjust current speed
-        currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * accelRate);
-
-        // Apply speed to NavMeshAgent
-        navAgent.speed = Mathf.Abs(currentSpeed);
-
-        // Direction will be forward or backward based on whether we're reversing
-        Vector3 targetDirection = isReversing ? -transform.forward : transform.forward;
-
       
+    }
 
-        moveDirection = Vector3.Lerp(moveDirection, targetDirection, Time.deltaTime * 5f);
+    public override void FixedUpdateNetwork()
+    {
+        if (!HasStateAuthority)
+            return;
 
-        // Set the NavMeshAgent's destination to a point in front of the car
-        if (Mathf.Abs(currentSpeed) > 0.1f)
+        // INPUT
+        float horizontal = Input.GetAxis("Horizontal");
+        float vertical = Input.GetAxis("Vertical");
+
+        // Rotate the visual front wheels based solely on horizontal input.
+        RotateVisualFrontWheels(horizontal);
+
+        Vector3 input = new Vector3(horizontal, 0, vertical);
+
+        // Only consider vertical movement input
+        if (Mathf.Abs(vertical) > 0.01f)
         {
-            navAgent.SetDestination(transform.position + moveDirection * 10f);
+            // Determine the desired movement direction from input
+            float desiredDirection = Mathf.Sign(vertical);
+
+            // If the desired direction is opposite to the current movement direction...
+            if (desiredDirection != currentMoveDirection)
+            {
+                // Decelerate until nearly stopped
+                currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, deceleration * Runner.DeltaTime);
+
+                // Once nearly stopped, switch the direction
+                if (currentSpeed < 0.1f)
+                {
+                    currentMoveDirection = desiredDirection;
+                }
+            }
+            else
+            {
+                // Accelerate normally in the current direction.
+                // (Use a lower max speed for reverse; forward uses full maxSpeed.)
+                float targetSpeed = (vertical > 0f) ? maxSpeed : maxSpeed * 0.5f;
+                currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, acceleration * Runner.DeltaTime);
+            }
+
+            // Calculate a NavMesh path when there is vertical input.
+            Vector3 worldDirection = Quaternion.Euler(0, Camera.main.transform.eulerAngles.y, 0) * input.normalized;
+            Vector3 destination = transform.position + worldDirection * 2f;
+
+            if (NavMesh.CalculatePath(transform.position, destination, NavMesh.AllAreas, path))
+            {
+                if (path.corners.Length > 1)
+                {
+                    currentPathIndex = 1;
+                    hasPath = true;
+                }
+            }
         }
         else
         {
-            // When nearly stopped, just set destination to current position
-            navAgent.SetDestination(transform.position);
+            // No vertical input? Decelerate.
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, deceleration * Runner.DeltaTime);
+            // Optionally, you can disable path once fully stopped.
+            if (currentSpeed < 0.01f)
+                hasPath = false;
         }
 
-        // When reversing, we need to manually move since NavMeshAgent doesn't support backwards movement
-        if (isReversing)
+        // MOVEMENT!
+        if (hasPath && path != null && path.corners.Length > currentPathIndex)
         {
-            // Disable NavMeshAgent's auto-position update temporarily
-            navAgent.updatePosition = false;
+            Vector3 nextCorner = path.corners[currentPathIndex];
+            Vector3 moveDir = nextCorner - transform.position;
+            moveDir.y = 0f;
 
-            // Move the transform directly
-            transform.position += moveDirection * (Mathf.Abs(currentSpeed) * Time.deltaTime);
-
-            // Update the agent's position to match the transform
-            navAgent.nextPosition = transform.position;
-
-            // Re-enable position updates
-            navAgent.updatePosition = true;
-        }
-    }
-        private void ApplyRotation()
-    {
-        // Only rotate if the car is moving
-        if (Mathf.Abs(currentSpeed) > 0.5f)
-        {
-            float rotationAmount = currentSteeringAngle * (isReversing ? -1 : 1) * Time.deltaTime;
-
-           
-
-            // Apply rotation
-            transform.Rotate(0, rotationAmount, 0);
-
-            // Visually tilt the car model
-            if (carModel != null)
+            // If we are close enough to the next point on the path, advance to the following point.
+            if (moveDir.magnitude < stoppingDistance)
             {
-                Vector3 targetRotation = new Vector3(0, carModel.localEulerAngles.y, 0);
-                carModel.localRotation = Quaternion.Slerp(carModel.localRotation, Quaternion.Euler(targetRotation), Time.deltaTime * 5f);
+                currentPathIndex++;
+                if (currentPathIndex >= path.corners.Length)
+                {
+                    hasPath = false;
+                    return;
+                }
+                nextCorner = path.corners[currentPathIndex];
+                moveDir = nextCorner - transform.position;
+                moveDir.y = 0f;
+            }
+
+            if (moveDir.sqrMagnitude > 0.001f)
+            {
+                // --- STEERING ---
+                float speedFactor = Mathf.Clamp01(moveDir.magnitude / (moveSpeed * Runner.DeltaTime));
+                float steerInput = Mathf.Clamp(horizontal, -1f, 1f);
+
+                // Invert the steering input when in reverse.
+                float effectiveSteerInput = currentMoveDirection > 0 ? steerInput : -steerInput;
+                float steerAngle = effectiveSteerInput * maxSteerAngle * speedFactor * steeringSensitivity;
+                Quaternion steerRotation = Quaternion.AngleAxis(steerAngle * Runner.DeltaTime, Vector3.up);
+                // Rotate the car based on steering input.
+                transform.rotation = steerRotation * transform.rotation;
+
+                // --- MOVING ---
+                // Move in the direction the car is facing.
+                Vector3 move = transform.forward * currentSpeed * currentMoveDirection * Runner.DeltaTime;
+                transform.position += move;
             }
         }
+        else if (currentSpeed > 0.01f)
+        {
+            // If no path is active but the car still has speed, let it coast.
+            Vector3 move = transform.forward * currentSpeed * currentMoveDirection * Runner.DeltaTime;
+            transform.position += move;
+
+            if (Mathf.Abs(horizontal) > 0.01f)
+            {
+                float steerAngle = horizontal * maxSteerAngle * steeringSensitivity;
+                // In reverse, invert the steering adjustment.
+                if (currentMoveDirection < 0f)
+                    steerAngle = -steerAngle;
+                Quaternion steerRotation = Quaternion.AngleAxis(steerAngle * Runner.DeltaTime, Vector3.up);
+                transform.rotation = steerRotation * transform.rotation;
+            }
+            // Continue decelerating.
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, deceleration * Runner.DeltaTime);
+        }
     }
+
+    // This helper rotates the visual front wheels based on horizontal input.
+    private void RotateVisualFrontWheels(float horizontalInput)
+    {
+        if (frontLeftWheel == null || frontRightWheel == null)
+            return;
+
+        float steerAngle = Mathf.Clamp(horizontalInput, -1f, 1f) * maxWheelTurnAngle;
+        Quaternion steerRotation = Quaternion.Euler(0f, steerAngle, 0f);
+        frontLeftWheel.localRotation = steerRotation;
+        frontRightWheel.localRotation = steerRotation;
+    }
+
 }
-
-

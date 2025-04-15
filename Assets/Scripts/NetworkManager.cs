@@ -13,6 +13,13 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     public string lobbyName = "default";
     public TMPro.TMP_InputField roomNumberInputField;
     public string playSceneName;
+    public string lobbySceneName;
+    public GameObject playerPrefab;
+
+    //public Transform sessionListContentParent;
+    //public GameObject sessionListEntryPrefab;
+    //public Dictionary<string, GameObject> sessionListUiDictionary = new Dictionary<string, GameObject>();
+
     private void Awake()
     {
 
@@ -52,6 +59,42 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
             GameMode = GameMode.Shared,
         }); ;
     }
+    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
+    {
+        // we need only for local player so we do this
+        if (player == runner.LocalPlayer)
+        {
+
+            //NetworkObject playerNetworkObject = runner.Spawn(playerPrefab, new Vector3(0, 0, 0), Quaternion.identity, player);
+            //runner.SetPlayerObject(player, playerNetworkObject);
+
+            // to spawn in a grid fashion, like a starting race.
+            // Using the player’s ordering (for example, the Raw value) to compute the spawn grid.
+            int index = player.PlayerId; //  player.PlayerId.
+            int columnIndex = index % 2;  // Two columns
+            int rowIndex = index / 2;     // Calculate row number
+
+            // Define grid parameters:
+            Vector3 spawnOrigin = new Vector3(5.0f, 0, 0); // Start position and from here on will be calculated for the rest
+            float columnSpacing = 1.5f; // Spacing as needed (for left/right positioning)
+            float rowSpacing = 3f;    // Spacing as needed (for front/back positioning)
+
+            // Determine offsets:
+            float xOffset = (columnIndex == 0) ? -columnSpacing : columnSpacing;
+            float zOffset = rowIndex * rowSpacing;
+
+            // Calculate final spawn position for this player
+            Vector3 spawnPosition = spawnOrigin + new Vector3(xOffset, 0, zOffset);
+
+            // Spawn the player prefab at the computed position with no rotation
+            NetworkObject playerNetworkObject = runner.Spawn(playerPrefab, spawnPosition, Quaternion.identity, player);
+
+            // Set the player object reference for this player
+            runner.SetPlayerObject(player, playerNetworkObject);
+        }
+
+    }
+
     public int GetSceneIndex(string sceneName)
     {
         for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
@@ -75,6 +118,99 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         runnerInstance.JoinSessionLobby(SessionLobby.Shared, lobbyName);
 
     }
+    public static void ReturnToLobby() // we call from ReturnToLobby.cs thats triggerd by the ReturnToLobby button.
+    {
+        NetworkManager.runnerInstance.Despawn(runnerInstance.GetPlayerObject(runnerInstance.LocalPlayer)); // Usually it should despawn when we shutdown but just doing it for our local player still.
+        NetworkManager.runnerInstance.Shutdown(true, ShutdownReason.Ok);
+
+    }
+    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
+    {
+        SceneManager.LoadScene(lobbySceneName);
+    }
+    //public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList)
+    //{
+    //    //Debug.Log("Session List Updated");
+
+    //    // Iterate through the Session List and check to see if there are sessions that are no longert in use and delete/remove them.
+    //    DeleteOldSessionsFromUI(sessionList);
+
+
+    //    /*Check out SessionListEntry list to see if we already have an entry object for THAT session.
+    //    If we do, then update the values for it, if we dont, then we create one.*/
+    //    CompareLists(sessionList);
+
+    //}
+    //private void CompareLists(List<SessionInfo> sessionList)
+    //{
+    //    foreach (SessionInfo session in sessionList)
+    //    {
+    //        if (sessionListUiDictionary.ContainsKey(session.Name))
+    //        {
+    //            UpdateEntryUI(session);
+    //        }
+    //        else
+    //        {
+    //            CreateEntryUI(session);
+    //        }
+    //    }
+    //}
+    //private void CreateEntryUI(SessionInfo session)
+    //{
+    //    GameObject newEntry = GameObject.Instantiate(sessionListEntryPrefab);
+    //    newEntry.transform.parent = sessionListContentParent;
+    //    SessionListEntry entryScript = newEntry.GetComponent<SessionListEntry>();
+    //    sessionListUiDictionary.Add(session.Name, newEntry);
+
+    //    entryScript.roomName.text = session.Name;
+    //    entryScript.playerCount.text = session.PlayerCount.ToString() + "/" + session.MaxPlayers.ToString();
+    //    entryScript.joinButton.interactable = session.IsOpen;
+
+    //    newEntry.SetActive(session.IsVisible);
+    //}
+
+    //private void UpdateEntryUI(SessionInfo session)
+    //{
+
+    //    sessionListUiDictionary.TryGetValue(session.Name, out GameObject newEntry);
+
+    //    SessionListEntry entryScript = newEntry.GetComponent<SessionListEntry>();
+
+    //    entryScript.roomName.text = session.Name;
+    //    entryScript.playerCount.text = session.PlayerCount.ToString() + "/" + session.MaxPlayers.ToString();
+    //    entryScript.joinButton.interactable = session.IsOpen;
+
+    //    newEntry.SetActive(session.IsVisible);
+    //}
+
+    //private void DeleteOldSessionsFromUI(List<SessionInfo> sessionList)
+    //{
+    //    bool isContained = false;
+    //    GameObject uiToDelete = null;
+
+    //    foreach (KeyValuePair<string, GameObject> kvp in sessionListUiDictionary)
+    //    {
+    //        string sessionKey = kvp.Key;
+
+    //        foreach (SessionInfo sessionInfo in sessionList)
+    //        {
+    //            if (sessionInfo.Name == sessionKey)
+    //            {
+    //                isContained = true;
+    //                break;
+
+    //            }
+    //        }
+
+    //        if (!isContained)
+    //        {
+    //            uiToDelete = kvp.Value;
+    //            sessionListUiDictionary.Remove(sessionKey);
+    //            Destroy(uiToDelete);
+
+    //        }
+    //    }
+    //}
     public void OnConnectedToServer(NetworkRunner runner)
     {
        
@@ -125,10 +261,6 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
        
     }
 
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
-    {
-       
-    }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
@@ -160,10 +292,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
        
     }
 
-    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
-    {
-       
-    }
+   
 
     public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message)
     {
