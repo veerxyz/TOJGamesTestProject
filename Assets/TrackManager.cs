@@ -8,6 +8,7 @@ public class TrackManager : MonoBehaviour
     public static TrackManager ins;
     public List<Transform> waypoints = new List<Transform>(); // to store our waypoints.
 
+    [Header("For Automatic Waypoints Generation")]
     // tried auto gen, works but needs more refinement, for which i shouldnt prioritize atm, if later time allows ill get back to this.
     // A prefab, mostly an empty GameObject, to represent a waypoint.
     public Transform waypointPrefab;
@@ -32,7 +33,7 @@ public class TrackManager : MonoBehaviour
         Debug.Log($"Predefined Waypoints Count: {waypoints.Count}");
     }
     #region Automatic Waypoints Testing
-    // Automatic Gen code below, tried using navmesh to generate..
+    // Automatic Gen code below, tried using navmesh to capture convex hull and generate..
     public void GenerateAutomaticWaypoints()
     {
         // Calculate the NavMesh triangulation.
